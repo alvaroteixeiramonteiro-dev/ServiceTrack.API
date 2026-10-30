@@ -104,11 +104,111 @@ namespace ServiceTrack.API.Controllers
                         ? (DateTime?)null
                         : leitor.GetDateTime("resolvido_em")
                 };
+
                 return Ok(pedido);
             }
 
             // Executa apenas quando a consulta não encontra o pedido.
             return NotFound(new { mensagem = "Pedido não encontrado." });
+        }
+        // POST: api/pedidos
+        [HttpPost]
+        public async Task<IActionResult> Criar([FromBody] Pedido novoPedido)
+        {
+            // Impede a criação de um pedido sem título.
+            if (string.IsNullOrWhiteSpace(novoPedido.Titulo))
+            {
+                return BadRequest(new { mensagem = "O título é obrigatório." });
+            }
+
+            if (string.IsNullOrWhiteSpace(novoPedido.Descricao))
+            {
+                return BadRequest(new { mensagem = "A descrição é obrigatória." });
+            }
+
+            if (string.IsNullOrWhiteSpace(novoPedido.NomeContato))
+            { 
+                return BadRequest(new { mensagem = "O nome do contacto é obrigatório." });
+            }
+
+            if (string.IsNullOrWhiteSpace(novoPedido.EmailContato))
+            {
+                return BadRequest(new { mensagem = "O email do contacto é obrigatório." });
+            }
+
+            if (string.IsNullOrWhiteSpace(novoPedido.Categoria))
+            {
+                return BadRequest(new { mensagem = "A categoria é obrigatória." });
+            }
+
+            // Respeita os limites definidos nas colunas VARCHAR da tabela.
+            if (novoPedido.Titulo.Length > 255 ||
+                novoPedido.NomeContato.Length > 255 ||
+                novoPedido.EmailContato.Length > 255 ||
+                novoPedido.Categoria.Length > 50)
+            {
+                return BadRequest(new 
+                {
+                    mensagem = "O título, nome e email podem ter até 255 caracteres; a categoria, até 50."
+                });
+                
+            }
+
+            if (novoPedido.Prioridade != "Baixa" &&
+                novoPedido.Prioridade != "Normal" &&
+                novoPedido.Prioridade != "Alta")
+            {
+                return BadRequest(new { mensagem = "A prioridade deve ser Baixa, Normal ou Alta." });
+            }
+
+            if (novoPedido.Estado != "Aberto" &&
+                novoPedido.Estado != "Em curso" &&
+                novoPedido.Estado != "Resolvido")
+            {
+                return BadRequest(new { mensagem = "O estado deve ser Aberto, Em curso ou Resolvido." });
+            }
+
+            novoPedido.CriadoEm = DateTime.UtcNow;
+            novoPedido.AtualizadoEm = novoPedido.CriadoEm;
+
+            novoPedido.ResolvidoEm = novoPedido.Estado == "Resolvido"
+                ? novoPedido.CriadoEm
+                : (DateTime?)null;
+
+            using var conexao = new MySqlConnection(_connectionString);
+            await conexao.OpenAsync();
+
+            // Insere o pedido e consulta o identificador gerado pelo MySQL.
+            string query = @"INSERT INTO pedidos (
+                    titulo, descricao, nome_contato, email_contato,
+                    categoria, prioridade, estado,
+                    criado_em, atualizado_em, resolvido_em
+                 )
+                 VALUES (
+                    @titulo, @descricao, @nome_contato, @email_contato,
+                    @categoria, @prioridade, @estado,
+                    @criado_em, @atualizado_em, @resolvido_em
+                 );
+                 SELECT LAST_INSERT_ID();";
+
+            using var comando = new MySqlCommand(query, conexao);
+
+            comando.Parameters.AddWithValue("@titulo", novoPedido.Titulo);
+            comando.Parameters.AddWithValue("@descricao", novoPedido.Descricao);
+            comando.Parameters.AddWithValue("@nome_contato", novoPedido.NomeContato);
+            comando.Parameters.AddWithValue("@email_contato", novoPedido.EmailContato);
+            comando.Parameters.AddWithValue("@categoria", novoPedido.Categoria);
+            comando.Parameters.AddWithValue("@prioridade", novoPedido.Prioridade);
+            comando.Parameters.AddWithValue("@estado", novoPedido.Estado);
+            comando.Parameters.AddWithValue("@criado_em", novoPedido.CriadoEm);
+            comando.Parameters.AddWithValue("@atualizado_em", novoPedido.AtualizadoEm);
+
+            comando.Parameters.AddWithValue("@resolvido_em", (object?)novoPedido.ResolvidoEm ?? DBNull.Value);
+
+            var idGerado = Convert.ToInt32(await comando.ExecuteScalarAsync());
+            novoPedido.Id = idGerado;
+
+            return CreatedAtAction(nameof(ObterPorId), new { id = novoPedido.Id }, novoPedido);
         }
     }
 }
