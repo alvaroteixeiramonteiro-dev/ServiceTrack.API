@@ -10,7 +10,6 @@
         public string Categoria { get; set; } = string.Empty;
         public string Prioridade { get; set; } = "Normal";
         public string Estado { get; set; } = "Aberto";
-
         public DateTime CriadoEm { get; set; }
         public DateTime AtualizadoEm { get; set; }
         public DateTime? ResolvidoEm { get; set; }
