@@ -1,4 +1,3 @@
-
 namespace ServiceTrack.API
 {
     public class Program
@@ -7,25 +6,29 @@ namespace ServiceTrack.API
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-
+            // Regista os controllers da API.
             builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            builder.Services.AddOpenApi();
+
+            // Regista os serviços necessários para documentar os endpoints.
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
+            // Disponibiliza a documentação e a interface Swagger
+            // apenas no ambiente de desenvolvimento.
             if (app.Environment.IsDevelopment())
             {
-                app.MapOpenApi();
+                app.UseSwagger();
+                app.UseSwaggerUI();
             }
 
+            // Redireciona os pedidos HTTP para HTTPS.
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
 
-
+            // Disponibiliza as rotas definidas nos controllers.
             app.MapControllers();
 
             app.Run();
