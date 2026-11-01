@@ -210,5 +210,120 @@ namespace ServiceTrack.API.Controllers
 
             return CreatedAtAction(nameof(ObterPorId), new { id = novoPedido.Id }, novoPedido);
         }
+
+        // PUT: api/pedidos/5
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Atualizar(int id, [FromBody] Pedido pedidoAtualizado)
+        {
+            // Impede a atualização de um pedido com título vazio.
+            if (string.IsNullOrWhiteSpace(pedidoAtualizado.Titulo))
+            {
+                return BadRequest(new { mensagem = "O título é obrigatório." });
+            }
+
+            if (string.IsNullOrWhiteSpace(pedidoAtualizado.Descricao))
+            {
+                return BadRequest(new { mensagem = "A descrição é obrigatória." });
+            }
+
+            if (string.IsNullOrWhiteSpace(pedidoAtualizado.NomeContato))
+            {
+                return BadRequest(new { mensagem = "O nome do contacto é obrigatório." });
+            }
+
+            if (string.IsNullOrWhiteSpace(pedidoAtualizado.EmailContato))
+            {
+                return BadRequest(new { mensagem = "O email do contacto é obrigatório." });
+            }
+
+            if (string.IsNullOrWhiteSpace(pedidoAtualizado.Categoria))
+            {
+                return BadRequest(new { mensagem = "A categoria é obrigatória." });
+            }
+
+            // Respeita os limites definidos na tabela.
+            if (pedidoAtualizado.Titulo.Length > 255 ||
+                pedidoAtualizado.NomeContato.Length > 255 ||
+                pedidoAtualizado.EmailContato.Length > 255 ||
+                pedidoAtualizado.Categoria.Length > 50)
+            {
+                return BadRequest(new { mensagem = "O título, nome e email podem ter até 255 caracteres; a categoria, até 50."});
+            }
+
+            if (pedidoAtualizado.Prioridade != "Baixa" &&
+                pedidoAtualizado.Prioridade != "Normal" &&
+                pedidoAtualizado.Prioridade != "Alta")
+            {
+                return BadRequest(new { mensagem = "A prioridade deve ser Baixa, Normal ou Alta."});
+            }
+
+            if (pedidoAtualizado.Estado != "Aberto" &&
+                pedidoAtualizado.Estado != "Em curso" &&
+                pedidoAtualizado.Estado != "Resolvido")
+            {
+                return BadRequest(new { mensagem = "O estado deve ser Aberto, Em curso ou Resolvido."} );
+            }
+
+            // A API define a data da atualização.
+            pedidoAtualizado.AtualizadoEm = DateTime.UtcNow;
+
+            if (pedidoAtualizado.Estado == "Resolvido")
+            {
+                pedidoAtualizado.ResolvidoEm = pedidoAtualizado.AtualizadoEm;
+            }
+            else
+            {
+                pedidoAtualizado.ResolvidoEm = null;
+            }
+
+            using var conexao = new MySqlConnection(_connectionString);
+            await conexao.OpenAsync();
+
+            string query = @"UPDATE pedidos
+                 SET titulo = @titulo,
+                     descricao = @descricao,
+                     nome_contato = @nome_contato,
+                     email_contato = @email_contato,
+                     categoria = @categoria,
+                     prioridade = @prioridade,
+                     estado = @estado,
+                     atualizado_em = @atualizado_em,
+                     resolvido_em = @resolvido_em
+                 WHERE id = @id";
+
+            using var comando = new MySqlCommand(query, conexao);
+
+            comando.Parameters.AddWithValue("@id", id);
+            comando.Parameters.AddWithValue("@titulo", pedidoAtualizado.Titulo);
+            comando.Parameters.AddWithValue("@descricao", pedidoAtualizado.Descricao);
+            comando.Parameters.AddWithValue("@nome_contato", pedidoAtualizado.NomeContato);
+            comando.Parameters.AddWithValue("@email_contato", pedidoAtualizado.EmailContato);
+            comando.Parameters.AddWithValue("@categoria", pedidoAtualizado.Categoria);
+            comando.Parameters.AddWithValue("@prioridade", pedidoAtualizado.Prioridade);
+            comando.Parameters.AddWithValue("@estado", pedidoAtualizado.Estado);
+            comando.Parameters.AddWithValue("@atualizado_em", pedidoAtualizado.AtualizadoEm);
+
+            if (pedidoAtualizado.ResolvidoEm.HasValue)
+            {
+                comando.Parameters.AddWithValue(
+                    "@resolvido_em", pedidoAtualizado.ResolvidoEm.Value);
+            }
+            else
+            {
+                comando.Parameters.AddWithValue("@resolvido_em", DBNull.Value);
+            }
+
+            int linhasAfetadas = await comando.ExecuteNonQueryAsync();
+
+            if (linhasAfetadas == 0)
+            {
+                return NotFound(new
+                {
+                    mensagem = "Pedido não encontrado para atualizar."
+                });
+            }
+
+            return NoContent();
+        }
     }
 }
