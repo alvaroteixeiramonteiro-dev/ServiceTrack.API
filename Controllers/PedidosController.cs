@@ -325,5 +325,30 @@ namespace ServiceTrack.API.Controllers
 
             return NoContent();
         }
+
+        // DELETE: api/pedidos/5
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Eliminar(int id)
+        {
+            
+            using var conexao = new MySqlConnection(_connectionString);
+            await conexao.OpenAsync();
+
+            // Elimina o pedido com o identificador recebido.
+            string query = "DELETE FROM pedidos WHERE id = @id";
+
+            using var comando = new MySqlCommand(query, conexao);
+            comando.Parameters.AddWithValue("@id", id);
+
+            // Executa a eliminação e obtém o número de linhas afetadas.
+            int linhasAfetadas = await comando.ExecuteNonQueryAsync();
+
+            if (linhasAfetadas == 0)
+            {
+                return NotFound(new { mensagem = "Pedido não encontrado para eliminar." });
+            }
+
+            return NoContent();
+        }
     }
 }
