@@ -1,6 +1,10 @@
-@ServiceTrack.API_HostAddress = http://localhost:5039
+@ServiceTrack_API_HostAddress = https://localhost:7242
 
-GET {{ServiceTrack.API_HostAddress}}/weatherforecast/
+// Lista todos os pedidos
+GET {{ServiceTrack_API_HostAddress}}/api/Pedidos
 Accept: application/json
 
-###
+### Consulta um pedido pelo ID
+GET {{ServiceTrack_API_HostAddress}}/api/Pedidos/1
+Accept: application/json
+
